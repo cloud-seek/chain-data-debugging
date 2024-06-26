@@ -8,24 +8,7 @@ As organizations grow and accumulate more data, managing storage costs becomes i
 By moving older, less frequently accessed data from DynamoDB to S3, organizations can significantly reduce their storage costs. This practice ensures that the most cost-efficient storage solutions are utilized for different stages of the data lifecycle.
 
 
-┌───────────────────────┐          ┌────────────────────────┐
-│   StandardTable       │          │     IATable            │
-│   (DynamoDB)          │          │     (DynamoDB)         │
-└─────────┬─────────────┘          └──────────┬─────────────┘
-          │                                    │
-          │                                    │
-          ▼                                    ▼
-┌────────────────────────┐       ┌──────────────────────────┐
-│   TTLStandardTrigger   │       │     TTLIATrigger         │
-│   (Lambda Function)    │       │     (Lambda Function)    │
-└─────────┬──────────────┘       └───────────┬──────────────┘
-          │                                    │
-          │                                    │
-          ▼                                    ▼
-┌───────────────────────┐          ┌─────────────────────────┐
-│   IATable             │          │     Amazon S3 Bucket    │
-│   (DynamoDB)          │          │     (bucket-logs)       │
-└───────────────────────┘          └─────────────────────────┘
+StandardTable (DynamoDB) ----> IATable (DynamoDB) ----> Amazon S3 Bucket
 
 
 ## Project Structure
