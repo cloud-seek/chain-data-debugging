@@ -90,8 +90,7 @@ export class ChainDataDebuggingStack extends cdk.Stack {
       batchSize: 1,
     }));
 
-    Tags.of(ttlStandardTrigger).add('FOCODAMB', 'POC');
-    Tags.of(ttlStandardTrigger).add('FOCODAPP', 'POC');
+    Tags.of(ttlStandardTrigger).add('FINOPS', 'XXX');
 
     const ttlStandardLogGroup = new logs.LogGroup(this, 'TTLStandardTriggerLogGroup', {
       logGroupName: `/aws/lambda/${ttlStandardTrigger.functionName}`,
@@ -146,8 +145,7 @@ export class ChainDataDebuggingStack extends cdk.Stack {
       batchSize: 1,
     }));
 
-    Tags.of(ttlIATrigger).add('FOCODAMB', 'POC');
-    Tags.of(ttlIATrigger).add('FOCODAPP', 'POC');
+    Tags.of(ttlIATrigger).add('FINOPS', 'XXX');
 
     const ttlIALogGroup = new logs.LogGroup(this, 'TTLIATriggerLogGroup', {
       logGroupName: `/aws/lambda/${ttlIATrigger.functionName}`,
@@ -162,6 +160,6 @@ export class ChainDataDebuggingStack extends cdk.Stack {
 
 const app = new cdk.App();
 new ChainDataDebuggingStack(app, 'ChainDataDebuggingStack', {
-  env: { region: 'us-east-1', account: '149778226133' },
+  env: { region: process.env.CDK_DEFAULT_REGION, account: process.env.CDK_DEFAULT_ACCOUNT },
 });
 app.synth();
