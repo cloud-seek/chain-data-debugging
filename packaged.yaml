@@ -1,0 +1,233 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SAM template for ChainDataDebuggingStack
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: chain-data-debugging
+    Description: This AWS CDK project deploys a solution for moving records to more
+      cost-efficient environments based on storage time. The main components include
+      DynamoDB tables, Lambda functions, and IAM roles necessary to perform the operations.
+    Author: Jordi Tanta
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: s3://package-cloud-seek/15ab8f41b65b3696434ad6e6f58bab4a
+    ReadmeUrl: s3://package-cloud-seek/1679092e3f793a098742c490a3572bab
+    Labels:
+    - finops
+    - storage
+    - dynamo
+    HomePageUrl: https://github.com/cloud-seek/chain-data-debugging
+    SemanticVersion: '0.0.1'
+    SourceCodeUrl: https://github.com/cloud-seek/chain-data-debugging
+Resources:
+  StandardTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: StandardTable
+      AttributeDefinitions:
+      - AttributeName: ID
+        AttributeType: S
+      KeySchema:
+      - AttributeName: ID
+        KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: OLD_IMAGE
+      TimeToLiveSpecification:
+        AttributeName: TTLDate
+        Enabled: true
+    Metadata:
+      SamResourceId: StandardTable
+  IATable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: IATable
+      AttributeDefinitions:
+      - AttributeName: ID
+        AttributeType: S
+      KeySchema:
+      - AttributeName: ID
+        KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: OLD_IMAGE
+      TimeToLiveSpecification:
+        AttributeName: TTLDate
+        Enabled: true
+    Metadata:
+      SamResourceId: IATable
+  LambdaTTLTriggerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: LambdaTTLTriggerRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      Policies:
+      - PolicyName: LambdaTTLTriggerPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - dynamodb:DescribeStream
+            - dynamodb:GetRecords
+            - dynamodb:GetShardIterator
+            - dynamodb:ListStreams
+            - dynamodb:PutItem
+            Resource:
+            - Fn::GetAtt:
+              - StandardTable
+              - Arn
+            - Fn::GetAtt:
+              - IATable
+              - Arn
+            - Fn::Join:
+              - /
+              - - Fn::GetAtt:
+                  - StandardTable
+                  - Arn
+                - stream/*
+            - Fn::Join:
+              - /
+              - - Fn::GetAtt:
+                  - IATable
+                  - Arn
+                - stream/*
+          - Effect: Allow
+            Action:
+            - lambda:InvokeFunction
+            Resource: '*'
+          - Effect: Allow
+            Action:
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource:
+            - Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/TTLStandardTrigger:*
+    Metadata:
+      SamResourceId: LambdaTTLTriggerRole
+  TTLStandardTrigger:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: TTLStandardTrigger
+      Handler: handlerST.ttlStandardTrigger
+      Runtime: nodejs18.x
+      CodeUri: s3://package-cloud-seek/b4121aa4a8359e31774838e6f496ba74
+      Role:
+        Fn::GetAtt:
+        - LambdaTTLTriggerRole
+        - Arn
+      Environment:
+        Variables:
+          BUCKET_NAME: bucket-logs
+          IATABLE_NAME:
+            Ref: IATable
+      Events:
+        DynamoDBStream:
+          Type: DynamoDB
+          Properties:
+            Stream:
+              Fn::GetAtt:
+              - StandardTable
+              - StreamArn
+            StartingPosition: TRIM_HORIZON
+            BatchSize: 1
+      Tags:
+        FINOPS: XXX
+    Metadata:
+      SamResourceId: TTLStandardTrigger
+  TTLStandardTriggerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: /aws/lambda/${TTLStandardTrigger}
+      RetentionInDays: 14
+      RemovalPolicy: Destroy
+    Metadata:
+      SamResourceId: TTLStandardTriggerLogGroup
+  LambdaTTLIARole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: LambdaTTLIARole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      Policies:
+      - PolicyName: LambdaTTLIAPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - dynamodb:DescribeStream
+            - dynamodb:GetRecords
+            - dynamodb:GetShardIterator
+            - dynamodb:ListStreams
+            - s3:PutObject
+            Resource:
+            - Fn::GetAtt:
+              - IATable
+              - Arn
+            - Fn::Join:
+              - /
+              - - Fn::GetAtt:
+                  - IATable
+                  - Arn
+                - stream/*
+            - Fn::Sub: arn:aws:s3:::bucket-logs/*
+          - Effect: Allow
+            Action:
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource:
+            - Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/TTLIATrigger:*
+    Metadata:
+      SamResourceId: LambdaTTLIARole
+  TTLIATrigger:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: TTLIATrigger
+      Handler: handlerIA.ttlIATrigger
+      Runtime: nodejs18.x
+      CodeUri: s3://package-cloud-seek/b4121aa4a8359e31774838e6f496ba74
+      Role:
+        Fn::GetAtt:
+        - LambdaTTLIARole
+        - Arn
+      Environment:
+        Variables:
+          BUCKET_NAME: bucket-logs
+      Events:
+        DynamoDBStream:
+          Type: DynamoDB
+          Properties:
+            Stream:
+              Fn::GetAtt:
+              - IATable
+              - StreamArn
+            StartingPosition: TRIM_HORIZON
+            BatchSize: 1
+      Tags:
+        FINOPS: XXX
+    Metadata:
+      SamResourceId: TTLIATrigger
+  TTLIATriggerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: /aws/lambda/${TTLIATrigger}
+      RetentionInDays: 14
+      RemovalPolicy: Destroy
+    Metadata:
+      SamResourceId: TTLIATriggerLogGroup
+Outputs:
+  BucketName:
+    Description: The name of the bucket
+    Value: bucket-logs
