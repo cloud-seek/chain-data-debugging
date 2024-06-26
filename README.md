@@ -2,6 +2,32 @@
 
 This AWS CDK project deploys a solution for moving records to more cost-efficient environments based on storage time. The main components include DynamoDB tables, Lambda functions, and IAM roles necessary to perform the operations.
 
+## Why is This Important?
+As organizations grow and accumulate more data, managing storage costs becomes increasingly critical. While DynamoDB provides fast and flexible NoSQL database solutions, it can be relatively expensive for long-term storage of data that is infrequently accessed. Amazon S3, on the other hand, offers a variety of storage classes optimized for different access patterns and cost requirements.
+
+By moving older, less frequently accessed data from DynamoDB to S3, organizations can significantly reduce their storage costs. This practice ensures that the most cost-efficient storage solutions are utilized for different stages of the data lifecycle.
+
+
+┌───────────────────────┐          ┌────────────────────────┐
+│   StandardTable       │          │     IATable            │
+│   (DynamoDB)          │          │     (DynamoDB)         │
+└─────────┬─────────────┘          └──────────┬─────────────┘
+          │                                    │
+          │                                    │
+          ▼                                    ▼
+┌────────────────────────┐       ┌──────────────────────────┐
+│   TTLStandardTrigger   │       │     TTLIATrigger         │
+│   (Lambda Function)    │       │     (Lambda Function)    │
+└─────────┬──────────────┘       └───────────┬──────────────┘
+          │                                    │
+          │                                    │
+          ▼                                    ▼
+┌───────────────────────┐          ┌─────────────────────────┐
+│   IATable             │          │     Amazon S3 Bucket    │
+│   (DynamoDB)          │          │     (bucket-logs)       │
+└───────────────────────┘          └─────────────────────────┘
+
+
 ## Project Structure
 
 ```
